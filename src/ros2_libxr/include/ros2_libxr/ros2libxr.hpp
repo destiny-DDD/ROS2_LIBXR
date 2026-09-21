@@ -226,6 +226,8 @@ class RMSerialDriver : public rclcpp::Node {
 
   /* 函数声明 */
 
+  void LibXR_Init();
+
   // Send消息回调函数
   void SendCallBack(const auto_aim_interfaces::msg::Send::SharedPtr msg);
 
@@ -235,6 +237,10 @@ class RMSerialDriver : public rclcpp::Node {
   void get_classic(const geometry_msgs::msg::Twist::SharedPtr twi);
 
  private:
+
+  std::string vid_;
+  std::string pid_;
+
   // LibXR 资源
   std::unique_ptr<LibXR::HardwareContainer> peripherals;
   std::unique_ptr<LibXR::RamFS> ramfs;

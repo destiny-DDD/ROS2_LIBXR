@@ -51,10 +51,11 @@ RMSerialDriver::RMSerialDriver(const rclcpp::NodeOptions &options)
     : Node("rm_serial_driver", options) {
 
   /*LibXR串口初始化*/
+  LibXR_Init();
   LibXR::PlatformInit();
   peripherals = std::make_unique<LibXR::HardwareContainer>();
   ramfs = std::make_unique<LibXR::RamFS>();
-  uart_client = std::make_unique<LibXR::LinuxUART>("16d0", "1492","navigation", 115200,
+  uart_client = std::make_unique<LibXR::LinuxUART>(vid_, pid_,"navigation", 115200,
                                                      LibXR::LinuxUART::Parity::NO_PARITY, 8, 1);
   terminal = std::make_unique<LibXR::Terminal<1024, 64, 16, 128>>(*ramfs);
   term_thread = std::make_unique<LibXR::Thread>();
@@ -299,6 +300,12 @@ void RMSerialDriver::get_classic(const geometry_msgs::msg::Twist::SharedPtr twi)
               << ", vy=" << move_.vy 
               << ", wz=" << move_.wz << std::endl;
     move_vec_topic_.Publish(move_);
+}
+
+void RMSerialDriver::LibXR_Init()
+{
+    vid_ = this->declare_parameter<std::string>("vid", "16d0");
+    pid_ = this->declare_parameter<std::string>("pid", "1492");
 }
 
 } // namespace rm_serial_driver
