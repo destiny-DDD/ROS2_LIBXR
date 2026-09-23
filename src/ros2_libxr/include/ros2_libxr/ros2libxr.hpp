@@ -33,6 +33,7 @@
 #include "app_framework.hpp"
 #include "linux_uart.hpp"
 #include "message.hpp"
+#include "std_msgs/msg/int32.hpp"
 #include "thread.hpp"
 #include "uart.hpp"
 #include "SharedTopic/SharedTopic.hpp"
@@ -57,6 +58,11 @@ struct move_vec
   float vx=0.0;
   float vy=0.0;
   float wz=0.0;
+};
+
+struct move_mode
+{
+  uint8_t mode=0;
 };
 
 //云台欧拉角数据结构体
@@ -210,7 +216,7 @@ static void XRobotMain(LibXR::HardwareContainer &hw) {
       appmgr,
       "uart_client",
       16,
-      {{"chassis_data"},{"sentry_state"}}
+      {{"chassis_data"},{"chassis_data"},{"sentry_state"}}
   );
 }
 
@@ -235,6 +241,7 @@ class RMSerialDriver : public rclcpp::Node {
   void convert_quaternion_to_euler(float qx, float qy, float qz, float qw,
                                    float &roll, float &pitch, float &yaw);
   void get_classic(const geometry_msgs::msg::Twist::SharedPtr twi);
+  void classic(const std_msgs::msg::Int32 mode);
 
  private:
 
@@ -251,6 +258,7 @@ class RMSerialDriver : public rclcpp::Node {
   // LibXR 话题
   LibXR::Topic ahrs_euler_topic_;
   LibXR::Topic move_vec_topic_;
+  LibXR::Topic move_mode_topic_;
   LibXR::Topic yawmotor_angle_topic_;
   LibXR::Topic sentry_ref_topic_;
   LibXR::Topic ahrs_quaternion_topic_;
@@ -258,13 +266,15 @@ class RMSerialDriver : public rclcpp::Node {
 
   // 底盘运动数据
   move_vec move_;
+  move_mode mode_;
 
   //云台相对底盘yaw全局变量
   float yawmotor_angle_data;
 
   // ROS2 发布者/订阅者
   rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr joint_state_pub_;
-  rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr move_vec_sub;
+  rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr move_vec_sub_;
+  rclcpp::Subscription<std_msgs::msg::Int32>::SharedPtr move_mode_sub_;
   rclcpp::Publisher<referee_interfaces::msg::RobotStatus>::SharedPtr sentry_ref_pub_;
   rclcpp::Publisher<referee_interfaces::msg::GameStatus>::SharedPtr game_status_pub_;
   rclcpp::Publisher<referee_interfaces::msg::RfidStatus>::SharedPtr rfid_status_pub_;

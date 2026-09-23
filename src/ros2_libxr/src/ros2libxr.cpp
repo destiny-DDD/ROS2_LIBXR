@@ -55,7 +55,7 @@ RMSerialDriver::RMSerialDriver(const rclcpp::NodeOptions &options)
   LibXR::PlatformInit();
   peripherals = std::make_unique<LibXR::HardwareContainer>();
   ramfs = std::make_unique<LibXR::RamFS>();
-  uart_client = std::make_unique<LibXR::LinuxUART>(vid_, pid_,"navigation", 115200,
+  uart_client = std::make_unique<LibXR::LinuxUART>(vid_, pid_, 115200,
                                                      LibXR::LinuxUART::Parity::NO_PARITY, 8, 1);
   terminal = std::make_unique<LibXR::Terminal<1024, 64, 16, 128>>(*ramfs);
   term_thread = std::make_unique<LibXR::Thread>();
@@ -72,6 +72,7 @@ RMSerialDriver::RMSerialDriver(const rclcpp::NodeOptions &options)
   /*LibXR话题创建 - 直接赋值给成员变量*/
   ahrs_euler_topic_ = LibXR::Topic::CreateTopic<LibXR::Quaternion<float>>("ahrs_quaternion");
   move_vec_topic_ = LibXR::Topic::CreateTopic<move_vec>("chassis_data");
+  move_mode_topic_ = LibXR::Topic::CreateTopic<move_mode>("chassis_mode");
   yawmotor_angle_topic_= LibXR::Topic::CreateTopic<float>("yawmotor_angle");
   sentry_ref_topic_ =
       LibXR::Topic::CreateTopic<RobotGameRefereePack>("sentry_ref");
@@ -85,9 +86,13 @@ RMSerialDriver::RMSerialDriver(const rclcpp::NodeOptions &options)
   //     "/fake_cmd_vel", rclcpp::SensorDataQoS(), 
   //     std::bind(&RMSerialDriver::get_classic, this, std::placeholders::_1));
 
-    move_vec_sub = this->create_subscription<geometry_msgs::msg::Twist>(
+    move_vec_sub_ = this->create_subscription<geometry_msgs::msg::Twist>(
       "/cmd_vel", rclcpp::SensorDataQoS(),
       std::bind(&RMSerialDriver::get_classic, this, std::placeholders::_1));
+
+    move_mode_sub_ = this->create_subscription<std_msgs::msg::Int32>(
+        "/move_mode",rclcpp::SensorDataQoS(),
+        std::bind(&RMSerialDriver::classic, this, std::placeholders::_1));
 
   sentry_ref_pub_ = this->create_publisher<referee_interfaces::msg::RobotStatus>(
       "referee/robot_status", rclcpp::QoS(rclcpp::KeepLast(1)));
@@ -300,6 +305,12 @@ void RMSerialDriver::get_classic(const geometry_msgs::msg::Twist::SharedPtr twi)
               << ", vy=" << move_.vy 
               << ", wz=" << move_.wz << std::endl;
     move_vec_topic_.Publish(move_);
+}
+
+void RMSerialDriver::classic(const std_msgs::msg::Int32 mode) {
+    mode_.mode=mode.data;
+    std::cout << "mode:" << mode_.mode << std::endl;
+    move_mode_topic_.Publish(mode_);
 }
 
 void RMSerialDriver::LibXR_Init()
