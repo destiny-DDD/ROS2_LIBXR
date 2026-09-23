@@ -216,7 +216,7 @@ static void XRobotMain(LibXR::HardwareContainer &hw) {
       appmgr,
       "uart_client",
       16,
-      {{"chassis_data"},{"chassis_data"},{"sentry_state"}}
+      {{"chassis_data"},{"chassis_mode"},{"sentry_state"}}
   );
 }
 
