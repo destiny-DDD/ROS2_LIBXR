@@ -89,6 +89,10 @@ RMSerialDriver::RMSerialDriver(const rclcpp::NodeOptions &options)
   move_vec_sub_ = this->create_subscription<geometry_msgs::msg::Twist>(
       "/cmd_vel", rclcpp::SensorDataQoS(),
       std::bind(&RMSerialDriver::get_classic, this, std::placeholders::_1));
+  last_cmd_vel_time_ms_.store(SteadyClockNowMilliseconds(),
+                              std::memory_order_relaxed);
+  velocity_timeout_timer_ = this->create_wall_timer(
+      50ms, std::bind(&RMSerialDriver::PublishZeroVelocityIfTimedOut, this));
 
   move_mode_sub_ = this->create_subscription<std_msgs::msg::Int32>(
       "/move_mode", rclcpp::SensorDataQoS(),
@@ -318,10 +322,32 @@ void RMSerialDriver::get_classic(
   move_.vx = -twi->linear.y;
   move_.vy = twi->linear.x;
   move_.wz = twi->angular.z;
+  last_cmd_vel_time_ms_.store(SteadyClockNowMilliseconds(),
+                              std::memory_order_relaxed);
   RCLCPP_INFO_THROTTLE(this->get_logger(), *this->get_clock(), 1000,
                         "cmd_vel: vx=%.3f, vy=%.3f, wz=%.3f", move_.vx,
                         move_.vy, move_.wz);
   move_vec_topic_.Publish(move_);
+}
+
+std::int64_t RMSerialDriver::SteadyClockNowMilliseconds() {
+  return std::chrono::duration_cast<std::chrono::milliseconds>(
+             std::chrono::steady_clock::now().time_since_epoch())
+      .count();
+}
+
+void RMSerialDriver::PublishZeroVelocityIfTimedOut() {
+  constexpr std::int64_t kVelocityTimeoutMilliseconds = 3000;
+  const auto now_ms = SteadyClockNowMilliseconds();
+  const auto last_command_ms =
+      last_cmd_vel_time_ms_.load(std::memory_order_relaxed);
+  if (!detail::IsVelocityCommandTimedOut(now_ms, last_command_ms,
+                                         kVelocityTimeoutMilliseconds)) {
+    return;
+  }
+
+  move_vec zero_velocity;
+  move_vec_topic_.Publish(zero_velocity);
 }
 
 void RMSerialDriver::classic(const std_msgs::msg::Int32 mode) {

@@ -20,6 +20,8 @@
 #include <tf2/LinearMath/Matrix3x3.h>
 
 // C++ system
+#include <atomic>
+#include <chrono>
 #include <fstream>
 #include <future>
 #include <iomanip>
@@ -38,6 +40,7 @@
 #include "uart.hpp"
 #include "SharedTopic/SharedTopic.hpp"
 #include "SharedTopicClient/SharedTopicClient.hpp"
+#include "ros2_libxr/velocity_timeout.hpp"
 
 // ROS2自定义消息包
 #include "auto_aim_interfaces/msg/send.hpp"
@@ -243,6 +246,9 @@ class RMSerialDriver : public rclcpp::Node {
   void get_classic(const geometry_msgs::msg::Twist::SharedPtr twi);
   void classic(const std_msgs::msg::Int32 mode);
 
+  static std::int64_t SteadyClockNowMilliseconds();
+  void PublishZeroVelocityIfTimedOut();
+
  private:
 
   std::string vid_;
@@ -267,6 +273,7 @@ class RMSerialDriver : public rclcpp::Node {
   // 底盘运动数据
   move_vec move_;
   move_mode mode_;
+  std::atomic<std::int64_t> last_cmd_vel_time_ms_{0};
 
   //云台相对底盘yaw全局变量
   float yawmotor_angle_data;
@@ -283,6 +290,7 @@ class RMSerialDriver : public rclcpp::Node {
   rclcpp::Publisher<auto_aim_interfaces::msg::Velocity>::SharedPtr velocity_pub_;
   rclcpp::Publisher<std_msgs::msg::Int32>::SharedPtr our_outpost_hp_pub_;
   rclcpp::TimerBase::SharedPtr game_status_fallback_timer_;
+  rclcpp::TimerBase::SharedPtr velocity_timeout_timer_;
 };
 
 } // namespace rm_serial_driver
